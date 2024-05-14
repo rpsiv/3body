@@ -4,7 +4,7 @@ import numpy as np
 app = Flask(__name__)
 
 # Constants
-G = 6.67430e-11  # gravitational constant
+G = 6.67430e-11  # gravitational constant in m^3 kg^-1 s^-2
 
 def calculate_forces(masses, positions):
     num_bodies = len(masses)
@@ -15,6 +15,8 @@ def calculate_forces(masses, positions):
             if i != j:
                 r = positions[j] - positions[i]
                 distance = np.linalg.norm(r)
+                if distance == 0:
+                    continue
                 force_magnitude = G * masses[i] * masses[j] / distance**2
                 force_direction = r / distance
                 forces[i] += force_magnitude * force_direction
@@ -35,11 +37,11 @@ def index():
 @app.route('/simulate', methods=['POST'])
 def simulate():
     data = request.json
-    masses = np.array(data['masses'], dtype=np.float64)
-    positions = np.array(data['positions'], dtype=np.float64)
-    velocities = np.array(data['velocities'], dtype=np.float64)
+    masses = np.array(data['masses'], dtype=np.float64) * 1e24  # convert to kg
+    positions = np.array(data['positions'], dtype=np.float64) * 1e3  # convert to meters
+    velocities = np.array(data['velocities'], dtype=np.float64) * 1e3  # convert to meters/second
     num_steps = data['num_steps']
-    dt = data['dt']
+    dt = data['dt'] * data['time_scale']
 
     print(f"Received data: {data}")
 
