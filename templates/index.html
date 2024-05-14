@@ -4,33 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3-Body Problem Simulation</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
-        body { display: flex; flex-direction: column; align-items: center; }
-        canvas { border: 1px solid black; }
+        body { display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
+        canvas { border: 1px solid black; margin-top: 20px; }
         table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; }
     </style>
 </head>
 <body>
-    <h1>3-Body Problem Simulation</h1>
-    <form id="simulation-form">
-        <table id="input-table">
-            <tr>
-                <th>Body</th>
-                <th>Mass (10^24 kg)</th>
-                <th>Position (x, y, z in km)</th>
-                <th>Velocity (vx, vy, vz in km/s)</th>
-                <th>Color</th>
-                <th>Action</th>
-            </tr>
-        </table>
-        <button type="button" onclick="addRow()">Add Body</button><br>
-        Number of Steps: <input type="number" id="numSteps" value="1000" step="1"><br>
-        Time Scale (seconds per second): <input type="number" id="timeScale" value="31536000" step="1"><br> <!-- 1 year in seconds -->
-        <label><input type="checkbox" id="showDebug"> Show Debug Data</label><br>
-        <button type="button" onclick="runSimulation()">Run Simulation</button>
-    </form>
-    <div id="debug-info" style="display:none;"></div>
+    <div class="container">
+        <h1 class="text-center">3-Body Problem Simulation</h1>
+        <form id="simulation-form">
+            <table class="table table-bordered" id="input-table">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Body</th>
+                        <th>Mass (10^24 kg)</th>
+                        <th>Position (x, y, z in km)</th>
+                        <th>Velocity (vx, vy, vz in km/s)</th>
+                        <th>Color</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" class="btn btn-primary" onclick="addRow()">Add Body</button><br>
+            <div class="form-group">
+                <label for="numSteps">Number of Steps:</label>
+                <input type="number" id="numSteps" class="form-control" value="1000" step="1">
+            </div>
+            <div class="form-group">
+                <label for="timeScale">Time Scale (seconds per second):</label>
+                <input type="number" id="timeScale" class="form-control" value="31536000" step="1"><!-- 1 year in seconds -->
+            </div>
+            <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input" id="showDebug">
+                <label class="form-check-label" for="showDebug">Show Debug Data</label>
+            </div>
+            <button type="button" class="btn btn-success" onclick="runSimulation()">Run Simulation</button>
+        </form>
+        <div id="debug-info" class="mt-3" style="display:none;"></div>
+    </div>
     <script>
         let numBodies = 0;
         let trajectories = [];
@@ -44,7 +59,7 @@
         const velocities = [];
         const defaultColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta'];
         const planetData = [
-            { mass: 1989000, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' }, // Sun
+            { mass: 1989000, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' },           // Sun
             { mass: 0.330, position: { x: 57910000, y: 0, z: 0 }, velocity: { vx: 0, vy: 47.87, vz: 0 }, color: 'grey' },   // Mercury
             { mass: 4.87, position: { x: 108200000, y: 0, z: 0 }, velocity: { vx: 0, vy: 35.02, vz: 0 }, color: 'orange' },  // Venus
             { mass: 5.97, position: { x: 149600000, y: 0, z: 0 }, velocity: { vx: 0, vy: 29.78, vz: 0 }, color: 'blue' },    // Earth
@@ -57,8 +72,8 @@
 
         function addRow() {
             numBodies++;
-            const table = document.getElementById('input-table');
-            const row = table.insertRow();
+            const tableBody = document.querySelector('#input-table tbody');
+            const row = tableBody.insertRow();
             const bodyCell = row.insertCell(0);
             const massCell = row.insertCell(1);
             const positionCell = row.insertCell(2);
@@ -73,17 +88,17 @@
             }
 
             bodyCell.innerHTML = `Body ${numBodies}`;
-            massCell.innerHTML = `<input type="number" value="${defaultValues.mass}" step="any" id="mass${numBodies}">`;
+            massCell.innerHTML = `<input type="number" class="form-control" value="${defaultValues.mass}" step="any" id="mass${numBodies}">`;
             positionCell.innerHTML = `
-                <input type="number" value="${defaultValues.position.x}" step="any" id="pos${numBodies}x">
-                <input type="number" value="${defaultValues.position.y}" step="any" id="pos${numBodies}y">
-                <input type="number" value="${defaultValues.position.z}" step="any" id="pos${numBodies}z">`;
+                <input type="number" class="form-control" value="${defaultValues.position.x}" step="any" id="pos${numBodies}x">
+                <input type="number" class="form-control" value="${defaultValues.position.y}" step="any" id="pos${numBodies}y">
+                <input type="number" class="form-control" value="${defaultValues.position.z}" step="any" id="pos${numBodies}z">`;
             velocityCell.innerHTML = `
-                <input type="number" value="${defaultValues.velocity.vx}" step="any" id="vel${numBodies}x">
-                <input type="number" value="${defaultValues.velocity.vy}" step="any" id="vel${numBodies}y">
-                <input type="number" value="${defaultValues.velocity.vz}" step="any" id="vel${numBodies}z">`;
-            colorCell.innerHTML = `<input type="text" value="${defaultValues.color}" id="color${numBodies}">`;
-            actionCell.innerHTML = `<button type="button" onclick="removeRow(this)">Remove</button>`;
+                <input type="number" class="form-control" value="${defaultValues.velocity.vx}" step="any" id="vel${numBodies}x">
+                <input type="number" class="form-control" value="${defaultValues.velocity.vy}" step="any" id="vel${numBodies}y">
+                <input type="number" class="form-control" value="${defaultValues.velocity.vz}" step="any" id="vel${numBodies}z">`;
+            colorCell.innerHTML = `<input type="text" class="form-control" value="${defaultValues.color}" id="color${numBodies}">`;
+            actionCell.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button>`;
 
             positions.push(defaultValues.position);
             velocities.push(defaultValues.velocity);
@@ -117,134 +132,134 @@
                     parseFloat(document.getElementById(`pos${i}z`).value),
                 ];
                 const vel = [
-                    parseFloat(document.getElementById(`vel${i}x`).value) * velocityScale,
-                    parseFloat(document.getElementById(`vel${i}y`).value) * velocityScale,
-                    parseFloat(document.getElementById(`vel${i}z`).value) * velocityScale,
-                ];
+                    parseFloat(document.getElementById(`vel${i}x`).value) * velocityScale, 
+                    parseFloat(document.getElementById(`vel${i}y`).value) * velocityScale, 
+                    parseFloat(document.getElementById(`vel${i}z`).value) * velocityScale, 
+                ]; 
                 const color = document.getElementById(`color${i}`).value;
-
-                // Check for NaN values
-                if (isNaN(mass) || pos.includes(NaN) || vel.includes(NaN)) {
-                    console.error(`Invalid input for body ${i}`);
-                    return;
-                }
-
-                masses.push(mass);
-                posArray.push(pos);
-                velArray.push(vel);
-                colors.push(color);
-                positions[i - 1] = { x: pos[0], y: pos[1], z: pos[2] };
-                velocities[i - 1] = { vx: vel[0], vy: vel[1], vz: vel[2] };
+                                // Check for NaN values
+            if (isNaN(mass) || pos.includes(NaN) || vel.includes(NaN)) {
+                console.error(`Invalid input for body ${i}`);
+                return;
             }
 
-            const numSteps = parseInt(document.getElementById('numSteps').value);
-            const timeScale = parseFloat(document.getElementById('timeScale').value);
-
-            console.log("Starting simulation with:", { masses, positions: posArray, velocities: velArray, num_steps: numSteps, time_scale:timeScale });
-            const dt = 0.01; // Time step in seconds
-
-fetch('/simulate', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ masses, positions: posArray, velocities: velArray, num_steps: numSteps, dt, time_scale: timeScale })
-})
-.then(response => response.json())
-.then(data => {
-    console.log("Received simulation data:", data);
-    trajectories = data;
-    step = 0;  // Reset step counter for new simulation
-    setup();  // Re-setup the canvas for new simulation
-})
-.catch(error => console.error('Error:', error));
-}
-
-let step = 0;
-let trails = [];
-
-function setup() {
-createCanvas(800, 800, WEBGL);
-frameRate(60); // Set frame rate to 60 fps
-trails = Array(numBodies).fill().map(() => []);
-}
-
-function draw() {
-background(220);
-orbitControl();
-if (document.getElementById('showDebug').checked) {
-    displayDebugInfo();
-} else {
-    document.getElementById('debug-info').style.display = 'none';
-}
-if (trajectories.length > 0 && step < trajectories.length) {
-    for (let i = 0; i < trajectories[step].length; i++) {
-        const pos = trajectories[step][i];
-        trails[i].push([...pos]);
-        if (trails[i].length > 100) {
-            trails[i].shift(); // Keep only the latest 100 positions
+            masses.push(mass);
+            posArray.push(pos);
+            velArray.push(vel);
+            colors.push(color);
+            positions[i - 1] = { x: pos[0], y: pos[1], z: pos[2] };
+            velocities[i - 1] = { vx: vel[0], vy: vel[1], vz: vel[2] };
         }
 
-        const radius = Math.cbrt(masses[i]) * sizeFactor; // Scale the size based on mass
-        push();
-        translate(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
-        fill(colors[i]); // Set color for each body
-        sphere(radius);
-        pop();
+        const numSteps = parseInt(document.getElementById('numSteps').value);
+        const timeScale = parseFloat(document.getElementById('timeScale').value);
+
+        console.log("Starting simulation with:", { masses, positions: posArray, velocities: velArray, num_steps: numSteps, time_scale: timeScale });
+
+        const dt = 0.01; // Time step in seconds
+
+        fetch('/simulate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ masses, positions: posArray, velocities: velArray, num_steps: numSteps, dt, time_scale: timeScale })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Received simulation data:", data);
+            trajectories = data;
+            step = 0;  // Reset step counter for new simulation
+            setup();  // Re-setup the canvas for new simulation
+        })
+        .catch(error => console.error('Error:', error));
     }
 
-    // Draw trails
-    for (let i = 0; i < trails.length; i++) {
-        noFill();
-        stroke(colors[i]); // Set color for trail
-        beginShape();
-        for (let j = 0; j < trails[i].length; j++) {
-            const pos = trails[i][j];
-            vertex(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+    let step = 0;
+    let trails = [];
+
+    function setup() {
+        createCanvas(800, 800, WEBGL);
+        frameRate(60); // Set frame rate to 60 fps
+        trails = Array(numBodies).fill().map(() => []);
+    }
+
+    function draw() {
+        background(220);
+        orbitControl();
+        if (document.getElementById('showDebug').checked) {
+            displayDebugInfo();
+        } else {
+            document.getElementById('debug-info').style.display = 'none';
         }
-        endShape();
-    }
+        if (trajectories.length > 0 && step < trajectories.length) {
+            for (let i = 0; i < trajectories[step].length; i++) {
+                const pos = trajectories[step][i];
+                trails[i].push([...pos]);
+                if (trails[i].length > 100) {
+                    trails[i].shift(); // Keep only the latest 100 positions
+                }
 
-    step += stepsPerFrame; // Increment step by stepsPerFrame
-} else if (step >= trajectories.length && trajectories.length > 0) {
-    // If the simulation is complete, keep the last frame up
-    for (let i = 0; i < trajectories[step - 1].length; i++) {
-        const pos = trajectories[step - 1][i];
+                const radius = Math.cbrt(masses[i]) * sizeFactor; // Scale the size based on mass
+                push();
+                translate(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+                fill(colors[i]); // Set color for each body
+                sphere(radius);
+                pop();
+            }
 
-        const radius = Math.cbrt(masses[i]) * sizeFactor; // Scale the size based on mass
-        push();
-        translate(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
-        fill(colors[i]); // Set color for each body
-        sphere(radius);
-        pop();
-    }
+            // Draw trails
+            for (let i = 0; i < trails.length; i++) {
+                noFill();
+                stroke(colors[i]); // Set color for trail
+                beginShape();
+                for (let j = 0; j < trails[i].length; j++) {
+                    const pos = trails[i][j];
+                    vertex(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+                }
+                endShape();
+            }
 
-    // Draw trails
-    for (let i = 0; i < trails.length; i++) {
-        noFill();
-        stroke(colors[i]); // Set color for trail
-        beginShape();
-        for (let j = 0; j < trails[i].length; j++) {
-            const pos = trails[i][j];
-            vertex(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+            step += stepsPerFrame; // Increment step by stepsPerFrame
+        } else if (step >= trajectories.length && trajectories.length > 0) {
+            // If the simulation is complete, keep the last frame up
+            for (let i = 0; i < trajectories[step - 1].length; i++) {
+                const pos = trajectories[step - 1][i];
+
+                const radius = Math.cbrt(masses[i]) * sizeFactor; // Scale the size based on mass
+                push();
+                translate(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+                fill(colors[i]); // Set color for each body
+                sphere(radius);
+                pop();
+            }
+
+            // Draw trails
+            for (let i = 0; i < trails.length; i++) {
+                noFill();
+                stroke(colors[i]); // Set color for trail
+                beginShape();
+                for (let j = 0; j < trails[i].length; j++) {
+                    const pos = trails[i][j];
+                    vertex(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+                }
+                endShape();
+            }
         }
-        endShape();
     }
-}
-}
 
-function displayDebugInfo() {
-let debugInfo = `Window Size: ${width} x ${height}<br>`;
-debugInfo += `Current Step: ${step}<br>`;
-for (let i = 0; i < numBodies; i++) {
-    if (positions[i]) {
-        debugInfo += `Body ${i + 1} Position: x=${positions[i].x.toFixed(2)}, y=${positions[i].y.toFixed(2)}, z=${positions[i].z.toFixed(2)}<br>`;
+    function displayDebugInfo() {
+        let debugInfo = `Window Size: ${width} x ${height}<br>`;
+        debugInfo += `Current Step: ${step}<br>`;
+        for (let i = 0; i < numBodies; i++) {
+            if (positions[i]) {
+                debugInfo += `Body ${i + 1} Position: x=${positions[i].x.toFixed(2)}, y=${positions[i].y.toFixed(2)}, z=${positions[i].z.toFixed(2)}<br>`;
+            }
+        }
+        const debugInfoDiv = document.getElementById('debug-info');
+        debugInfoDiv.innerHTML = debugInfo;
+        debugInfoDiv.style.display = 'block';
     }
-}
-const debugInfoDiv = document.getElementById('debug-info');
-debugInfoDiv.innerHTML = debugInfo;
-debugInfoDiv.style.display = 'block';
-}
 </script>
 </body>
 </html>
