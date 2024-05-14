@@ -17,9 +17,10 @@
         <button type="button" onclick="addBody()">Add Body</button><br>
         Number of Steps: <input type="number" id="numSteps" value="1000" step="1"><br>
         Time Scale (seconds per second): <input type="number" id="timeScale" value="31536000" step="1"><br> <!-- 1 year in seconds -->
+        <label><input type="checkbox" id="showDebug"> Show Debug Data</label><br>
         <button type="button" onclick="runSimulation()">Run Simulation</button>
     </form>
-    <div id="debug-info"></div>
+    <div id="debug-info" style="display:none;"></div>
     <script>
         let numBodies = 0;
         let trajectories = [];
@@ -32,6 +33,17 @@
         const positions = [];
         const velocities = [];
         const defaultColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta'];
+        const planetData = [
+            { mass: 1989000, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' }, // Sun
+            { mass: 0.330, position: { x: 57910000, y: 0, z: 0 }, velocity: { vx: 0, vy: 47.87, vz: 0 }, color: 'grey' },   // Mercury
+            { mass: 4.87, position: { x: 108200000, y: 0, z: 0 }, velocity: { vx: 0, vy: 35.02, vz: 0 }, color: 'orange' },  // Venus
+            { mass: 5.97, position: { x: 149600000, y: 0, z: 0 }, velocity: { vx: 0, vy: 29.78, vz: 0 }, color: 'blue' },    // Earth
+            { mass: 0.642, position: { x: 227940000, y: 0, z: 0 }, velocity: { vx: 0, vy: 24.07, vz: 0 }, color: 'red' },    // Mars
+            { mass: 1898, position: { x: 778330000, y: 0, z: 0 }, velocity: { vx: 0, vy: 13.07, vz: 0 }, color: 'brown' },   // Jupiter
+            { mass: 568, position: { x: 1429400000, y: 0, z: 0 }, velocity: { vx: 0, vy: 9.69, vz: 0 }, color: 'yellow' },   // Saturn
+            { mass: 86.8, position: { x: 2870990000, y: 0, z: 0 }, velocity: { vx: 0, vy: 6.81, vz: 0 }, color: 'cyan' },    // Uranus
+            { mass: 102, position: { x: 4504300000, y: 0, z: 0 }, velocity: { vx: 0, vy: 5.43, vz: 0 }, color: 'blue' }     // Neptune
+        ];
 
         function addBody() {
             const inputFields = document.getElementById('input-fields');
@@ -42,20 +54,8 @@
             numBodies++;
             let defaultValues = { mass: 1, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: defaultColors[(numBodies - 1) % defaultColors.length] };
 
-            if (numBodies === 1) {
-                defaultValues = {
-                    mass: 1989000, // Sun
-                    position: { x: 0, y: 0, z: 0 },
-                    velocity: { vx: 0, vy: 0, vz: 0 },
-                    color: 'yellow'
-                };
-            } else if (numBodies === 2) {
-                defaultValues = {
-                    mass: 5.972, // Earth
-                    position: { x: 150000000, y: 0, z: 0 },
-                    velocity: { vx: 0, vy: 29.78, vz: 0 },
-                    color: 'blue'
-                };
+            if (numBodies <= 9) {
+                defaultValues = planetData[numBodies - 1];
             }
 
             positions.push(defaultValues.position);
@@ -131,17 +131,17 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ masses, positions: posArray, velocities: velArray, num_steps: numSteps, dt, time_scale: timeScale })
-                })
-                .then(response => response.json())
-                .then(data => {
+            })
+            .then(response => response.json())
+            .then(data => {
                 console.log("Received simulation data:", data);
                 trajectories = data;
                 step = 0;  // Reset step counter for new simulation
                 setup();  // Re-setup the canvas for new simulation
-                })
-                .catch(error => console.error('Error:', error));
-                }
-                let step = 0;
+            })        .catch(error => console.error('Error:', error));
+    }
+
+    let step = 0;
     let trails = [];
 
     function setup() {
@@ -153,12 +153,16 @@
     function draw() {
         background(220);
         orbitControl();
-        displayDebugInfo();
+        if (document.getElementById('showDebug').checked) {
+            displayDebugInfo();
+        } else {
+            document.getElementById('debug-info').style.display = 'none';
+        }
         if (trajectories.length > 0 && step < trajectories.length) {
             for (let i = 0; i < trajectories[step].length; i++) {
                 const pos = trajectories[step][i];
                 trails[i].push([...pos]);
-                if (trails[i].length > 1000) {
+                if (trails[i].length > 100) {
                     trails[i].shift(); // Keep only the latest 100 positions
                 }
 
@@ -171,8 +175,9 @@
             }
 
             // Draw trails
-            noFill();
             for (let i = 0; i < trails.length; i++) {
+                noFill();
+                stroke(colors[i]); // Set color for trail
                 beginShape();
                 for (let j = 0; j < trails[i].length; j++) {
                     const pos = trails[i][j];
@@ -196,8 +201,9 @@
             }
 
             // Draw trails
-            noFill();
             for (let i = 0; i < trails.length; i++) {
+                noFill();
+                stroke(colors[i]); // Set color for trail
                 beginShape();
                 for (let j = 0; j < trails[i].length; j++) {
                     const pos = trails[i][j];
@@ -216,7 +222,9 @@
                 debugInfo += `Body ${i + 1} Position: x=${positions[i].x.toFixed(2)}, y=${positions[i].y.toFixed(2)}, z=${positions[i].z.toFixed(2)}<br>`;
             }
         }
-        document.getElementById('debug-info').innerHTML = debugInfo;
+        const debugInfoDiv = document.getElementById('debug-info');
+        debugInfoDiv.innerHTML = debugInfo;
+        debugInfoDiv.style.display = 'block';
     }
 </script>
 </body>
