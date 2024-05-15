@@ -116,17 +116,24 @@
         function removeRow(button) {
             const row = button.parentNode.parentNode;
             const rowIndex = row.rowIndex - 1;
+
+            // Remove the row from the table
             document.getElementById('input-table').deleteRow(rowIndex + 1);
 
+            // Remove the corresponding elements from the arrays
             positions.splice(rowIndex, 1);
             velocities.splice(rowIndex, 1);
             masses.splice(rowIndex, 1);
             colors.splice(rowIndex, 1);
+
             numBodies--;
 
+            // Stop thesimulation if a body is removed
+            stopSimulation();
             checkBodies();
-        }
-        function checkBodies() {
+    }
+
+    function checkBodies() {
         const runSimulationButton = document.getElementById('runSimulationButton');
         runSimulationButton.disabled = numBodies === 0;
     }
@@ -185,6 +192,12 @@
             setup();  // Re-setup the canvas for new simulation
         })
         .catch(error => console.error('Error:', error));
+    }
+
+    function stopSimulation() {
+        trajectories = [];
+        step = 0;
+        setup();
     }
 
     let step = 0;
@@ -278,7 +291,7 @@
                 noFill();
                 stroke(colors[i]); // Set color for trail
                 beginShape();
-                for (let j = 0; j < trails[i].length; j++) {
+                for (let j = 0; i < trails[i].length; j++) {
                     const pos = trails[i][j];
                     vertex(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
                 }
