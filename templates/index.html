@@ -126,12 +126,12 @@
 
             checkBodies();
         }
+        function checkBodies() {
+        const runSimulationButton = document.getElementById('runSimulationButton');
+        runSimulationButton.disabled = numBodies === 0;
+    }
 
-        function checkBodies(){
-            const runSimulationButton = document.getElementById('runSimulationButton');
-            runSimulationButton.disabled = numBodies === 0;
-        }
-        function runSimulation() {
+    function runSimulation() {
         masses = [];
         colors = [];
         const posArray = [];
@@ -240,6 +240,7 @@
                 const radius = Math.cbrt(masses[i]) * sizeFactor; // Scale the size based on mass
                 push();
                 translate(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+                noStroke(); // Disable the wireframe stroke
                 fill(colors[i]); // Set color for each body
                 sphere(radius);
                 pop();
@@ -266,6 +267,7 @@
                 const radius = Math.cbrt(masses[i]) * sizeFactor; // Scale the size based on mass
                 push();
                 translate(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
+                noStroke(); // Disable the wireframe stroke
                 fill(colors[i]); // Set color for each body
                 sphere(radius);
                 pop();
