@@ -15,6 +15,17 @@
 <body>
     <div class="container">
         <h1 class="text-center">3-Body Problem Simulation</h1>
+        <div class="form-group">
+            <label for="preconfiguredSetups">Pre-configured Setups:</label>
+            <select id="preconfiguredSetups" class="form-control" onchange="loadPreconfiguredSetup()">
+                <option value="">Select a setup</option>
+                <option value="solarSystem">Solar System</option>
+                <option value="classic3Body">Classic 3-Body Problem</option>
+                <option value="figureEight">Figure-Eight Orbit</option>
+                <option value="random3Body">Random 3-Body Interaction</option>
+                <option value="hierarchicalTriple">Hierarchical Triple System</option>
+            </select>
+        </div>
         <form id="simulation-form">
             <table class="table table-bordered" id="input-table">
                 <thead class="thead-dark">
@@ -63,74 +74,137 @@
         const positions = [];
         const velocities = [];
         const defaultColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta'];
-        const planetData = [
-            { mass: 1989000, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' },           // Sun
-            { mass: 0.330, position: { x: 57910000, y: 0, z: 0 }, velocity: { vx: 0, vy: 47.87, vz: 0 }, color: 'grey' },   // Mercury
-            { mass: 4.87, position: { x: 108200000, y: 0, z: 0 }, velocity: { vx: 0, vy: 35.02, vz: 0 }, color: 'orange' },  // Venus
-            { mass: 5.97, position: { x: 149600000, y: 0, z: 0 }, velocity: { vx: 0, vy: 29.78, vz: 0 }, color: 'blue' },    // Earth
-            { mass: 0.642, position: { x: 227940000, y: 0, z: 0 }, velocity: { vx: 0, vy: 24.07, vz: 0 }, color: 'red' },    // Mars
-            { mass: 1898, position: { x: 778330000, y: 0, z: 0 }, velocity: { vx: 0, vy: 13.07, vz: 0 }, color: 'brown' },   // Jupiter
-            { mass: 568, position: { x: 1429400000, y: 0, z: 0 }, velocity: { vx: 0, vy: 9.69, vz: 0 }, color: 'yellow' },   // Saturn
-            { mass: 86.8, position: { x: 2870990000, y: 0, z: 0 }, velocity: { vx: 0, vy: 6.81, vz: 0 }, color: 'cyan' },    // Uranus
-            { mass: 102, position: { x: 4504300000, y: 0, z: 0 }, velocity: { vx: 0, vy: 5.43, vz: 0 }, color: 'blue' }     // Neptune
-        ];
 
-        function addRow() {
-            numBodies++;
+        const preconfiguredSetups = {
+            solarSystem: [
+                { mass: 1989000, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' },           // Sun
+                { mass: 0.330, position: { x: 57910000, y: 0, z: 0 }, velocity: { vx: 0, vy: 47.87, vz: 0 }, color: 'grey' },   // Mercury
+                { mass: 4.87, position: { x: 108200000, y: 0, z: 0 }, velocity: { vx: 0, vy: 35.02, vz: 0 }, color: 'orange' },  // Venus
+                { mass: 5.97, position: { x: 149600000, y: 0, z: 0 }, velocity: { vx: 0, vy: 29.78, vz: 0 }, color: 'blue' },    // Earth
+                { mass: 0.642, position: { x: 227940000, y: 0, z: 0 }, velocity: { vx: 0, vy: 24.07, vz: 0 }, color: 'red' },    // Mars
+                { mass: 1898, position: { x: 778330000, y: 0, z: 0 }, velocity: { vx: 0, vy: 13.07, vz: 0 }, color: 'brown' },   // Jupiter
+                { mass: 568, position: { x: 1429400000, y: 0, z: 0 }, velocity: { vx: 0, vy: 9.69, vz: 0 }, color: 'yellow' },   // Saturn
+                { mass: 86.8, position: { x: 2870990000, y: 0, z: 0 }, velocity: { vx: 0, vy: 6.81, vz: 0 }, color: 'cyan' },    // Uranus
+                { mass: 102, position: { x: 4504300000, y: 0, z: 0 }, velocity: { vx: 0, vy: 5.43, vz: 0 }, color: 'blue' }     // Neptune
+            ],
+            classic3Body: [
+                { mass: 1, position: { x: 100000, y: 0, z: 0 }, velocity: { vx: 0, vy: 2.5, vz: 0 }, color: 'red' },
+                { mass: 1, position: { x: -50000, y: 86600, z: 0 }, velocity: { vx: -2.165, vy: -1.25, vz: 0 }, color: 'green' },
+                { mass: 1, position: { x: -50000, y: -86600, z: 0 }, velocity: { vx: 2.165, vy: -1.25, vz: 0 }, color: 'blue' }
+            ],
+            figureEight: [
+                { mass: 1, position: { x: -1000, y: 0, z: 0 }, velocity: { vx: 0.347, vy: 0.532, vz: 0 }, color: 'red' },
+                { mass: 1, position: { x: 1000, y: 0, z: 0 }, velocity: { vx: 0.347, vy: 0.532, vz: 0 }, color: 'green' },
+                { mass: 1, position: { x: 0, y: 0, z: 0 }, velocity: { vx: -0.694, vy: -1.064, vz: 0 }, color: 'blue' }
+            ],
+            random3Body: [
+                { mass: 1, position: { x: 100000, y: 200000, z: 0 }, velocity: { vx: -1, vy: 0, vz: 0 }, color: 'red' },
+                { mass: 1, position: { x: -100000, y: -200000, z: 0 }, velocity: { vx: 1, vy: 0.5, vz: 0 }, color: 'green' },
+                { mass: 1, position: { x: 0, y: 100000, z: 0 }, velocity: { vx: 0.5, vy: -1, vz: 0 }, color: 'blue' }
+            ],
+            hierarchicalTriple: [
+                { mass: 10, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' },
+                { mass: 1, position: { x: 50000, y: 0, z: 0 }, velocity: { vx: 0, vy: 3, vz: 0 }, color: 'blue' },
+                { mass: 0.1, position: { x: -200000, y: 0, z: 0 }, velocity: { vx: 0, vy: -1, vz: 0 }, color: 'green' }
+            ]
+        };
+        function loadPreconfiguredSetup() {
+        const setupName = document.getElementById('preconfiguredSetups').value;
+        const setup = preconfiguredSetups[setupName];
+
+        if (setup) {
+            // Clear existing rows
             const tableBody = document.querySelector('#input-table tbody');
-            const row = tableBody.insertRow();
-            const bodyCell = row.insertCell(0);
-            const massCell = row.insertCell(1);
-            const positionCell = row.insertCell(2);
-            const velocityCell = row.insertCell(3);
-            const colorCell = row.insertCell(4);
-            const actionCell = row.insertCell(5);
+            tableBody.innerHTML = '';
+            numBodies = 0;
 
-            let defaultValues = { mass: 1, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: defaultColors[(numBodies - 1) % defaultColors.length] };
+            // Add rows for the selected setup
+            setup.forEach(body => {
+                numBodies++;
+                const row = tableBody.insertRow();
+                const bodyCell = row.insertCell(0);
+                const massCell = row.insertCell(1);
+                const positionCell = row.insertCell(2);
+                const velocityCell = row.insertCell(3);
+                const colorCell = row.insertCell(4);
+                const actionCell = row.insertCell(5);
 
-            if (numBodies <= 9) {
-                defaultValues = planetData[numBodies - 1];
-            }
+                bodyCell.innerHTML = `Body ${numBodies}`;
+                massCell.innerHTML = `<input type="number" class="form-control" value="${body.mass}" step="any" id="mass${numBodies}">`;
+                positionCell.innerHTML = `
+                    <input type="number" class="form-control" value="${body.position.x}" step="any" id="pos${numBodies}x">
+                    <input type="number" class="form-control" value="${body.position.y}" step="any" id="pos${numBodies}y">
+                    <input type="number" class="form-control" value="${body.position.z}" step="any" id="pos${numBodies}z">`;
+                velocityCell.innerHTML = `
+                    <input type="number" class="form-control" value="${body.velocity.vx}" step="any" id="vel${numBodies}x">
+                    <input type="number" class="form-control" value="${body.velocity.vy}" step="any" id="vel${numBodies}y">
+                    <input type="number" class="form-control" value="${body.velocity.vz}" step="any" id="vel${numBodies}z">`;
+                colorCell.innerHTML = `<input type="text" class="form-control" value="${body.color}" id="color${numBodies}">`;
+                actionCell.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button>`;
 
-            bodyCell.innerHTML = `Body ${numBodies}`;
-            massCell.innerHTML = `<input type="number" class="form-control" value="${defaultValues.mass}" step="any" id="mass${numBodies}">`;
-            positionCell.innerHTML = `
-                <input type="number" class="form-control" value="${defaultValues.position.x}" step="any" id="pos${numBodies}x">
-                <input type="number" class="form-control" value="${defaultValues.position.y}" step="any" id="pos${numBodies}y">
-                <input type="number" class="form-control" value="${defaultValues.position.z}" step="any" id="pos${numBodies}z">`;
-            velocityCell.innerHTML = `
-                <input type="number" class="form-control" value="${defaultValues.velocity.vx}" step="any" id="vel${numBodies}x">
-                <input type="number" class="form-control" value="${defaultValues.velocity.vy}" step="any" id="vel${numBodies}y">
-                <input type="number" class="form-control" value="${defaultValues.velocity.vz}" step="any" id="vel${numBodies}z">`;
-            colorCell.innerHTML = `<input type="text" class="form-control" value="${defaultValues.color}" id="color${numBodies}">`;
-            actionCell.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button>`;
-
-            positions.push(defaultValues.position);
-            velocities.push(defaultValues.velocity);
-            masses.push(defaultValues.mass);
-            colors.push(defaultValues.color);
+                positions.push(body.position);
+                velocities.push(body.velocity);
+                masses.push(body.mass);
+                colors.push(body.color);
+            });
 
             checkBodies();
         }
+    }
 
-        function removeRow(button) {
-            const row = button.parentNode.parentNode;
-            const rowIndex = row.rowIndex - 1;
+    function addRow() {
+        numBodies++;
+        const tableBody = document.querySelector('#input-table tbody');
+        const row = tableBody.insertRow();
+        const bodyCell = row.insertCell(0);
+        const massCell = row.insertCell(1);
+        const positionCell = row.insertCell(2);
+        const velocityCell = row.insertCell(3);
+        const colorCell = row.insertCell(4);
+        const actionCell = row.insertCell(5);
 
-            // Remove the row from the table
-            document.getElementById('input-table').deleteRow(rowIndex + 1);
+        let defaultValues = { mass: 1, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: defaultColors[(numBodies - 1) % defaultColors.length] };
 
-            // Remove the corresponding elements from the arrays
-            positions.splice(rowIndex, 1);
-            velocities.splice(rowIndex, 1);
-            masses.splice(rowIndex, 1);
-            colors.splice(rowIndex, 1);
+        bodyCell.innerHTML = `Body ${numBodies}`;
+        massCell.innerHTML = `<input type="number" class="form-control" value="${defaultValues.mass}" step="any" id="mass${numBodies}">`;
+        positionCell.innerHTML = `
+            <input type="number" class="form-control" value="${defaultValues.position.x}" step="any" id="pos${numBodies}x">
+            <input type="number" class="form-control" value="${defaultValues.position.y}" step="any" id="pos${numBodies}y">
+            <input type="number" class="form-control" value="${defaultValues.position.z}" step="any" id="pos${numBodies}z">`;
+        velocityCell.innerHTML = `
+            <input type="number" class="form-control" value="${defaultValues.velocity.vx}" step="any" id="vel${numBodies}x">
+            <input type="number" class="form-control" value="${defaultValues.velocity.vy}" step="any" id="vel${numBodies}y">
+            <input type="number" class="form-control" value="${defaultValues.velocity.vz}" step="any" id="vel${numBodies}z">`;
+        colorCell.innerHTML = `<input type="text" class="form-control" value="${defaultValues.color}" id="color${numBodies}">`;
+        actionCell.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button>`;
 
-            numBodies--;
+        positions.push(defaultValues.position);
+        velocities.push(defaultValues.velocity);
+        masses.push(defaultValues.mass);
+        colors.push(defaultValues.color);
 
-            // Stop thesimulation if a body is removed
-            stopSimulation();
-            checkBodies();
+        checkBodies();
+    }
+
+    function removeRow(button) {
+        const row = button.parentNode.parentNode;
+        const rowIndex = row.rowIndex - 1;
+
+        // Remove the row from the table
+        document.getElementById('input-table').deleteRow(rowIndex + 1);
+
+        // Remove the corresponding elements from the arrays
+        positions.splice(rowIndex, 1);
+        velocities.splice(rowIndex, 1);
+        masses.splice(rowIndex, 1);
+        colors.splice(rowIndex, 1);
+
+        numBodies--;
+
+        // Stop the simulation if a body is removed
+        stopSimulation();
+
+        checkBodies();
     }
 
     function checkBodies() {
@@ -229,7 +303,6 @@
         console.log("maxDistance " + maxDistance);
         console.log("scaleFactor " + scaleFactor);
     }
-
     function draw() {
         background(220);
         orbitControl();
@@ -291,7 +364,7 @@
                 noFill();
                 stroke(colors[i]); // Set color for trail
                 beginShape();
-                for (let j = 0; i < trails[i].length; j++) {
+                for (let j = 0; j < trails[i].length; j++) {
                     const pos = trails[i][j];
                     vertex(pos[0] * positionScale, pos[1] * positionScale, pos[2] * positionScale); // Apply scaling for drawing
                 }
