@@ -46,7 +46,7 @@
                 <label for="scaleSlider">Manual Scale: <span id="scaleValue">1</span></label>
                 <input type="range" id="scaleSlider" class="form-control" min="0.1" max="10" value="1" step="0.1" oninput="updateScale(this.value)">
             </div>
-            <button type="button" class="btn btn-success" onclick="runSimulation()">Run Simulation</button>
+            <button type="button" id="runSimulationButton" class="btn btn-success" onclick="runSimulation()" disabled>Run Simulation</button>
         </form>
         <div id="debug-info" class="mt-3" style="display:none;"></div>
     </div>
@@ -109,6 +109,8 @@
             velocities.push(defaultValues.velocity);
             masses.push(defaultValues.mass);
             colors.push(defaultValues.color);
+
+            checkBodies();
         }
 
         function removeRow(button) {
@@ -121,8 +123,14 @@
             masses.splice(rowIndex, 1);
             colors.splice(rowIndex, 1);
             numBodies--;
+
+            checkBodies();
         }
 
+        function checkBodies(){
+            const runSimulationButton = document.getElementById('runSimulationButton');
+            runSimulationButton.disabled = numBodies === 0;
+        }
         function runSimulation() {
         masses = [];
         colors = [];
@@ -153,8 +161,6 @@
             posArray.push(pos);
             velArray.push(vel);
             colors.push(color);
-            positions[i - 1] = { x: pos[0], y: pos[1], z: pos[2] };
-            velocities[i - 1] = { vx: vel[0], vy: vel[1], vz: vel[2] };
         }
 
         const numSteps = parseInt(document.getElementById('numSteps').value);
@@ -206,9 +212,9 @@
                 }
             }
         }
-        scaleFactor = 400 / (maxDistance * positionScale)
-        console.log("maxDistance " + maxDistance)
-        console.log("scaleFactor " + scaleFactor)
+        scaleFactor = 400 / (maxDistance * positionScale); // Correctly calculate the scale factor
+        console.log("maxDistance " + maxDistance);
+        console.log("scaleFactor " + scaleFactor);
     }
 
     function draw() {
@@ -283,8 +289,10 @@
         let debugInfo = `Window Size: ${width} x ${height}<br>`;
         debugInfo += `Current Step: ${step}<br>`;
         for (let i = 0; i < numBodies; i++) {
-            const pos = trajectories.length > 0 ? trajectories[step][i] : positions[i];
-            debugInfo += `Body ${i + 1} Position: x=${(pos[0] * positionScale).toFixed(2)}, y=${(pos[1] * positionScale).toFixed(2)}, z=${(pos[2] * positionScale).toFixed(2)}<br>`;
+            const pos = trajectories.length > 0 && step < trajectories.length ? trajectories[step][i] : positions[i];
+            if (pos) {
+                debugInfo += `Body ${i + 1} Position: x=${(pos[0] * positionScale).toFixed(2)}, y=${(pos[1] * positionScale).toFixed(2)}, z=${(pos[2] * positionScale).toFixed(2)}<br>`;
+            }
         }
         const debugInfoDiv = document.getElementById('debug-info');
         debugInfoDiv.innerHTML = debugInfo;
