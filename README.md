@@ -36,7 +36,8 @@ This project simulates the 3-body problem using a web-based interface built with
 
 ## Development
 
-This project was developed with the assistance of ChatGPT-4. The process involved iterative coding and debugging sessions, where the AI provided guidance on structuring the code, identifying and fixing bugs, and optimizing the simulation parameters.
+This project was developed with the assistance of ChatGPT-4. The process involved iterative coding and debugging sessions, where the AI provided guidance on structuring the code, identifying and fixing bugs, and optimizing the simulation parameters.  The initial prompt was: 
+`Write a python program which can simulate the 3 body problem. Have it take in masses and number of bodies and their initial stating locations and vectors. It should be a web user interface which displays the motions of the objects and takes the initial inputs.`
 
 ### Key Development Steps
 
