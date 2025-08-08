@@ -1,73 +1,105 @@
+# N-Body Gravity Simulation (Web)
 
-# 3-Body Problem Simulation
+Interactive, web-based N-body gravity simulator built with Flask (Python), p5.js (WebGL), and Chart.js. Explore preconfigured scenarios (from classic 3-body to a simplified solar system) or create your own by editing masses, positions, and velocities. Visualize trajectories, vectors, and energy over time with a modern, responsive UI.
 
-This project simulates the 3-body problem using a web-based interface built with Flask and p5.js. It allows users to explore different scenarios involving the gravitational interaction between three celestial bodies. Users can choose pre-configured setups or define their own initial conditions.
+## Key Features
 
-## Features
+- **Modern UI**
+  - Responsive two-panel layout (Bootstrap 5)
+  - Play/Pause, Reset View, and JSON export (Download Data)
+  - Presets selector and editable bodies table (add/remove bodies, color pickers)
+- **Physics Visualization**
+  - 3D WebGL rendering with orbit camera (rotate/pan/zoom when hovering over the canvas)
+  - Trails with adjustable length
+  - Axes toggle
+  - Velocity and force vectors on bodies (screen-space scaled for visibility at any zoom)
+  - Center on center-of-mass (COM) option
+  - COM marker (grey), scaled relative to body sizes
+  - Follow a specific body, or keep scene centered on COM
+- **Physics Insights**
+  - Energy chart (kinetic, potential, total) using Chart.js
+  - Energy drift indicator over the simulation
+- **Simulation Modes**
+  - Fixed-length runs: compute a specified number of steps server-side and then play
+  - Continuous mode: stream batches of steps from the server while playing
+  - Backpressure to avoid unbounded buffering; only one request in flight; pause halts streaming
 
-- **Pre-configured Setups**: Quickly load scenarios such as the Solar System, classic 3-body problem, figure-eight orbit, random 3-body interaction, and hierarchical triple system.
-- **Custom Initial Conditions**: Define your own masses, positions, velocities, and colors for up to three bodies.
-- **Visualization**: View the simulation in a 3D space with trails showing the paths of the bodies.
-- **Debug Information**: Option to display debug information including the current step and positions of the bodies.
+## Units and Conventions
 
-## Usage
+- Mass input unit: 10^24 kg
+- Position input unit: km
+- Velocity input unit: km/s
+- The server converts to SI units (kg, m, m/s) for physics, then returns trajectories in meters
+- Rendering uses a dynamic scale factor so typical systems are visible without manual tuning
 
-1. **Clone the repository**:
+## Presets
+
+- Solar System (simplified): Sun + eight planets
+- Classic 3-Body Problem
+- Figure-Eight Orbit (3-body choreography)
+- Random 3-Body Interaction
+- Hierarchical Triple System
+
+You can also add/remove bodies and set custom initial conditions.
+
+## Controls
+
+- Left panel
+  - Presets and Add body
+  - Steps (fixed-length mode), Time scale (seconds per second)
+  - Continuous mode + Steps per batch (used only in continuous mode)
+  - Zoom slider (manual multiplier)
+  - Toggles: Debug, Center on COM, Trails, Axes, Velocity vectors, Force vectors, Show center of mass
+  - Follow body: lock view to a specific body
+  - Physics insights: energy chart and drift
+- Top bar
+  - Play/Pause (disabled until frames are available)
+  - Reset View
+  - Download Data (exports JSON with metadata and trajectories)
+- Canvas (hover to control)
+  - Rotate: drag with left mouse
+  - Pan: drag with right mouse (or two-finger drag on trackpad)
+  - Zoom: scroll
+
+## Running Locally
+
+1. Clone and install
    ```sh
    git clone https://github.com/rpsiv/3body.git
    cd 3body
-   ```
-
-2. **Install the dependencies**:
-   ```sh
    pip install -r requirements.txt
    ```
 
-3. **Run the Flask application**:
+2. Start the app
    ```sh
-   flask run
+   python app.py
    ```
+   Then open `http://127.0.0.1:5000` in your browser.
 
-4. **Open your browser** and navigate to `http://127.0.0.1:5000`.
+Notes:
+- The app uses CDN scripts for p5.js and Chart.js, so no extra JS install steps are needed.
+- If you use `flask run`, set `FLASK_APP=app.py`.
 
-5. **Choose a setup** from the dropdown menu or define your own initial conditions using the form.
+## How It Works
 
-6. **Run the simulation** by clicking the "Run Simulation" button.
+- Server: Python/Flask computes gravitational interactions with a simple explicit integrator
+  - `POST /simulate`: compute a full run for `num_steps`, return all positions (in meters)
+  - `POST /simulate_chunk`: compute a batch of steps and return the new frames plus the updated state (for streaming)
+- Client: p5.js renders 3D positions, with draw-time options for trails, axes, vectors, and COM
+- Chart.js plots energies derived from returned frames
 
-## Development
+## Known Limitations / Roadmap
 
-This project was developed with the assistance of ChatGPT-4. The process involved iterative coding and debugging sessions, where the AI provided guidance on structuring the code, identifying and fixing bugs, and optimizing the simulation parameters.  The initial prompt was: 
+- The integrator is explicit (Euler-like). Energy drift can be non-negligible for long runs or large time scales
+  - Roadmap: add symplectic/RK4 integrators and adaptive step sizing
+- No persistence of custom scenarios yet
+  - Roadmap: save/load scenarios, shareable URLs
+- Streaming currently uses batch polling
+  - Roadmap: Server-Sent Events or WebSockets for event-driven streaming
+- Large systems (many bodies or very long runs) will stress the browser; use continuous mode with moderate batch sizes
 
-`Write a python program which can simulate the 3 body problem. Have it take in masses and number of bodies and their initial stating locations and vectors. It should be a web user interface which displays the motions of the objects and takes the initial inputs.`
+## Development Notes
 
-See the `conversation.md` to see the conversation, the generated code blocks are omitted for brevity but the full transcript can be provided
+This project involved iterative improvements to UI/UX and simulation stability. See `conversation.md` for design decisions and history.
 
-### Key Development Steps
-
-1. **Initial Setup**: Flask application and basic HTML structure.
-2. **Adding p5.js**: Integrating p5.js for visualization.
-3. **Defining Physics**: Implementing the physics for the 3-body problem.
-4. **UI Enhancements**: Improving the UI with Bootstrap and adding features like pre-configured setups.
-5. **Debugging**: Iteratively fixing bugs and optimizing the simulation parameters.
-6. **Final Touches**: Adding debug information, trails, and ensuring scalability for different scenarios.
-
-### Challenges and Solutions
-
-- **Initial Condition Stability**: Ensuring that the 3-body scenarios have stable initial conditions to avoid chaotic behavior. This was achieved by carefully setting the initial positions and velocities based on known solutions.
-- **Scalability**: Ensuring the simulation runs smoothly for both small and large distances. Scaling factors were adjusted accordingly.
-- **UI/UX**: Enhancing the user experience by making the interface intuitive and responsive.
-
-## Pre-configured Setups
-
-The following pre-configured setups are available:
-
-1. **Solar System**: A simplified model of the solar system including the Sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.
-2. **Classic 3-Body Problem**: Three bodies forming an equilateral triangle with initial velocities set to maintain a stable orbit.
-3. **Figure-Eight Orbit**: Three bodies following a figure-eight trajectory.
-4. **Random 3-Body Interaction**: Random initial positions and velocities for three bodies.
-5. **Hierarchical Triple System**: A larger body with two smaller bodies orbiting it.
-
-## Contributions
-
-Contributions are welcome! Please fork the repository and submit a pull request.
-
+Contributions welcome! Please open issues with reproducible steps and include your browser/OS info.

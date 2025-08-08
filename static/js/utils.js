@@ -5,7 +5,8 @@ function updateScale(value) {
 
 function displayDebugInfo() {
     let debugInfo = `Window Size: ${width} x ${height}<br>`;
-    debugInfo += `Current Step: ${step}<br>`;
+    debugInfo += `Current Step: ${step} / ${trajectories.length}<br>`;
+    debugInfo += `Paused: ${window.sim?.isPaused ? 'Yes' : 'No'}<br>`;
     for (let i = 0; i < numBodies; i++) {
         const pos = trajectories.length > 0 && step < trajectories.length ? trajectories[step][i] : positions[i];
         if (pos) {

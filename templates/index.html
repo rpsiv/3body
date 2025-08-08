@@ -1,68 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3-Body Problem Simulation</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <style>
-        body { display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
-        canvas { border: 1px solid black; margin-top: 20px; }
-        table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3-Body Problem Simulation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root { color-scheme: dark light; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .app-main { flex: 1; }
+    .sidebar { background: var(--bs-body-bg); border-right: 1px solid rgba(255,255,255,0.08); }
+    .canvas-wrap { position: relative; height: calc(100vh - 72px); background: radial-gradient(1200px 800px at 50% 20%, #0b1220 0%, #05080f 60%, #020409 100%); }
+    .canvas-wrap canvas { outline: none; }
+    .glass { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+    .form-section + .form-section { margin-top: 1rem; }
+    .table thead th { position: sticky; top: 0; z-index: 1; }
+    .loader-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); z-index: 10; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .control-inline { display: flex; gap: .5rem; align-items: center; }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <h1 class="text-center">3-Body Problem Simulation</h1>
-        <div class="form-group">
-            <label for="preconfiguredSetups">Pre-configured Setups:</label>
-            <select id="preconfiguredSetups" class="form-control" onchange="loadPreconfiguredSetup()">
-                <option value="">Select a setup</option>
-                <option value="solarSystem">Solar System</option>
-                <option value="classic3Body">Classic 3-Body Problem</option>
-                <option value="figureEight">Figure-Eight Orbit</option>
-                <option value="random3Body">Random 3-Body Interaction</option>
-                <option value="hierarchicalTriple">Hierarchical Triple System</option>
-            </select>
-        </div>
-        <form id="simulation-form">
-            <table class="table table-bordered" id="input-table">
-                <thead class="thead-dark">
-                    <tr>
-                        <th>Body</th>
-                        <th>Mass (10^24 kg)</th>
-                        <th>Position (x, y, z in km)</th>
-                        <th>Velocity (vx, vy, vz in km/s)</th>
-                        <th>Color</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <button type="button" class="btn btn-primary" onclick="addRow()">Add Body</button><br>
-            <div class="form-group">
-                <label for="numSteps">Number of Steps:</label>
-                <input type="number" id="numSteps" class="form-control" value="1000" step="1">
-            </div>
-            <div class="form-group">
-                <label for="timeScale">Time Scale (seconds per second):</label>
-                <input type="number" id="timeScale" class="form-control" value="315360" step="1"><!-- 1 year in seconds -->
-            </div>
-            <div class="form-group form-check">
-                <input type="checkbox" class="form-check-input" id="showDebug">
-                <label class="form-check-label" for="showDebug">Show Debug Data</label>
-            </div>
-            <div class="form-group">
-                <label for="scaleSlider">Zoom Level: <span id="scaleValue">1</span></label>
-                <input type="range" id="scaleSlider" class="form-control" min="0.1" max="10" value="1" step="0.1" oninput="updateScale(this.value)">
-            </div>
-            <button type="button" id="runSimulationButton" class="btn btn-success" onclick="runSimulation()" disabled>Run Simulation</button>
-        </form>
-        <div id="debug-info" class="mt-3" style="display:none;"></div>
+<body class="app-shell">
+  <nav class="navbar navbar-expand-lg border-bottom" data-bs-theme="dark" style="background: #0a0f1a;">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="#">3-Body Problem</a>
+      <div class="d-flex gap-2">
+        <button id="playPauseBtn" class="btn btn-primary btn-sm" type="button" disabled>Play</button>
+        <button id="resetViewBtn" class="btn btn-outline-secondary btn-sm" type="button">Reset View</button>
+        <button id="downloadBtn" class="btn btn-outline-info btn-sm" type="button">Download Data</button>
+      </div>
     </div>
-    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </nav>
+
+  <div class="app-main container-fluid px-0">
+    <div class="row g-0">
+      <aside class="col-12 col-lg-4 p-3 sidebar">
+        <div class="glass p-3 mb-3">
+          <div class="mb-2">
+            <label for="preconfiguredSetups" class="form-label">Pre-configured setups</label>
+            <select id="preconfiguredSetups" class="form-select" onchange="loadPreconfiguredSetup()">
+              <option value="">Select a setup…</option>
+              <option value="solarSystem">Solar System</option>
+              <option value="classic3Body">Classic 3-Body Problem</option>
+              <option value="figureEight">Figure-Eight Orbit</option>
+              <option value="random3Body">Random 3-Body Interaction</option>
+              <option value="hierarchicalTriple">Hierarchical Triple System</option>
+            </select>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-success flex-fill" id="runSimulationButton" onclick="runSimulation()" disabled>Run</button>
+            <button type="button" class="btn btn-outline-light" onclick="addRow()">Add body</button>
+          </div>
+        </div>
+
+        <div class="glass p-0 overflow-auto" style="max-height: 40vh;">
+          <table class="table table-sm mb-0" id="input-table">
+            <thead class="table-dark">
+              <tr>
+                <th>Body</th>
+                <th>Mass (10^24 kg)</th>
+                <th>Position (km)</th>
+                <th>Velocity (km/s)</th>
+                <th>Color</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="glass p-3 form-section">
+          <h6 class="mb-3">Simulation</h6>
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-6">
+              <label class="form-label" for="numSteps">Steps</label>
+              <input type="number" id="numSteps" class="form-control" value="1000" step="1">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="timeScale">Time scale (s/s)</label>
+              <input type="number" id="timeScale" class="form-control" value="315360" step="1">
+            </div>
+          </div>
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="continuousMode">
+              <label class="form-check-label" for="continuousMode">Continuous mode</label>
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="batchSteps">Steps per batch</label>
+              <input type="number" id="batchSteps" class="form-control" value="50" min="1" step="1">
+            </div>
+          </div>
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-12">
+              <label class="form-label" for="scaleSlider">Zoom <span id="scaleValue">1</span>x</label>
+              <input type="range" id="scaleSlider" class="form-range" min="0.1" max="10" value="1" step="0.1" oninput="updateScale(this.value)">
+            </div>
+          </div>
+          <div class="row g-2 align-items-center">
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="showDebug">
+              <label class="form-check-label" for="showDebug">Debug</label>
+            </div>
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="centerOnCOM">
+              <label class="form-check-label" for="centerOnCOM">Center on COM</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass p-3 form-section">
+          <h6 class="mb-3">Display</h6>
+          <div class="row g-2 mb-2">
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="showTrails" checked>
+              <label class="form-check-label" for="showTrails">Show trails</label>
+            </div>
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="showAxes" checked>
+              <label class="form-check-label" for="showAxes">Show axes</label>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="trailLength">Trail length</label>
+            <input type="range" id="trailLength" class="form-range" min="50" max="20000" value="10000" step="50">
+          </div>
+          <div class="row g-2">
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="showVel">
+              <label class="form-check-label" for="showVel">Velocity vectors</label>
+            </div>
+            <div class="col-6 control-inline">
+              <input class="form-check-input" type="checkbox" id="showForce">
+              <label class="form-check-label" for="showForce">Force vectors</label>
+            </div>
+          </div>
+          <div class="row g-2 mt-2">
+            <div class="col-12 control-inline">
+              <input class="form-check-input" type="checkbox" id="showCOM">
+              <label class="form-check-label" for="showCOM">Show center of mass</label>
+            </div>
+          </div>
+          <div class="mt-2">
+            <label class="form-label" for="followBody">Follow body</label>
+            <select id="followBody" class="form-select">
+              <option value="-1">None</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="glass p-3 form-section">
+          <h6 class="mb-3">Physics insights</h6>
+          <canvas id="energyChart" height="140"></canvas>
+          <div id="insightsText" class="small text-body-secondary mt-2"></div>
+        </div>
+      </aside>
+
+      <section class="col-12 col-lg-8">
+        <div class="canvas-wrap" id="canvas-container">
+          <div class="loader-overlay" id="loader">
+            <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading…</span></div>
+          </div>
+          <div class="position-absolute top-0 end-0 p-2 small text-body-secondary" id="legend"></div>
+        </div>
+        <div class="p-2 small" id="debug-info" style="display:none;"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
