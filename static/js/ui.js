@@ -1,4 +1,4 @@
-const defaultColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta'];
+const defaultColors = ['#ff6b6b', '#4dabf7', '#51cf66', '#ffd43b', '#845ef7', '#ffa94d', '#20c997', '#e64980'];
 const planetData = [
     { mass: 1989000, position: { x: 0, y: 0, z: 0 }, velocity: { vx: 0, vy: 0, vz: 0 }, color: 'yellow' },           // Sun
     { mass: 0.330, position: { x: 57910000, y: 0, z: 0 }, velocity: { vx: 0, vy: 47.87, vz: 0 }, color: 'grey' },   // Mercury
@@ -43,6 +43,17 @@ function loadPreconfiguredSetup() {
         const tableBody = document.querySelector('#input-table tbody');
         tableBody.innerHTML = '';
         numBodies = 0;
+        // Reset data arrays for debug/pre-sim display
+        positions.length = 0;
+        velocities.length = 0;
+        masses.length = 0;
+        colors.length = 0;
+
+        // Cancel any ongoing streaming state
+        trajectories = [];
+        step = 0;
+        setPaused(true);
+        toggleLoader(false);
     
         // Add rows for the selected setup
         setup.forEach(body => {
@@ -65,11 +76,11 @@ function loadPreconfiguredSetup() {
                 <input type="number" class="form-control" value="${body.velocity.vx}" step="any" id="vel${numBodies}x">
                 <input type="number" class="form-control" value="${body.velocity.vy}" step="any" id="vel${numBodies}y">
                 <input type="number" class="form-control" value="${body.velocity.vz}" step="any" id="vel${numBodies}z">`;
-            colorCell.innerHTML = `<input type="text" class="form-control" value="${body.color}" id="color${numBodies}">`;
+            colorCell.innerHTML = `<input type="color" class="form-control form-control-color" value="${cssColor(body.color)}" id="color${numBodies}">`;
             actionCell.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button>`;
     
-            positions.push(body.position);
-            velocities.push(body.velocity);
+            positions.push([body.position.x, body.position.y, body.position.z]);
+            velocities.push([body.velocity.vx, body.velocity.vy, body.velocity.vz]);
             masses.push(body.mass);
             colors.push(body.color);
         });
@@ -102,7 +113,8 @@ function addRow() {
         <input type="number" class="form-control" value="0" step="any" id="vel${numBodies}z">`;
     
     const colorCell = row.insertCell(4);
-    colorCell.innerHTML = `<input type="text" class="form-control" value="blue" id="color${numBodies}">`;
+    const defaultColor = defaultColors[(numBodies - 1) % defaultColors.length];
+    colorCell.innerHTML = `<input type="color" class="form-control form-control-color" value="${defaultColor}" id="color${numBodies}">`;
     
     const actionCell = row.insertCell(5);
     actionCell.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button>`;
@@ -132,6 +144,7 @@ function removeRow(button) {
 function checkBodies() {
     const runSimulationButton = document.getElementById('runSimulationButton');
     runSimulationButton.disabled = numBodies === 0;
+    refreshFollowBodyOptions();
 }
 
 function runSimulation() {
@@ -147,9 +160,9 @@ function runSimulation() {
             parseFloat(document.getElementById(`pos${i}z`).value),
         ];
         const vel = [
-            parseFloat(document.getElementById(`vel${i}x`).value) * velocityScale,
-            parseFloat(document.getElementById(`vel${i}y`).value) * velocityScale,
-            parseFloat(document.getElementById(`vel${i}z`).value) * velocityScale,
+            parseFloat(document.getElementById(`vel${i}x`).value),
+            parseFloat(document.getElementById(`vel${i}y`).value),
+            parseFloat(document.getElementById(`vel${i}z`).value),
         ];
         const color = document.getElementById(`color${i}`).value;
 
@@ -170,27 +183,254 @@ function runSimulation() {
 
     console.log("Starting simulation with:", { masses, positions: posArray, velocities: velArray, num_steps: numSteps, time_scale: timeScale });
 
-    const dt = 1; // Time step in seconds
+    const dt = 1; // Time step in seconds (base)
 
-    fetch('/simulate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ masses, positions: posArray, velocities: velArray, num_steps: numSteps, dt, time_scale: timeScale })
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Received simulation data:", data);
-        trajectories = data;
-        step = 0;  // Reset step counter for new simulation
-        setup();  // Re-setup the canvas for new simulation
-    })
-    .catch(error => console.error('Error:', error));
+    const continuous = document.getElementById('continuousMode')?.checked;
+    const batchStepsInput = document.getElementById('batchSteps');
+    const batchSteps = parseInt(batchStepsInput?.value || '50', 10);
+
+    toggleLoader(true);
+    if (!continuous) {
+        fetch('/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ masses, positions: posArray, velocities: velArray, num_steps: numSteps, dt, time_scale: timeScale })
+        })
+        .then(response => response.json())
+        .then(data => {
+            trajectories = data;
+            step = 0;
+            window.sim.setStepDtSeconds(timeScale);
+            window.sim.updateFromUI();
+            window.sim.updateLegend();
+            initOrUpdateEnergyChart();
+            setPaused(true);
+            enablePlaybackIfData();
+        })
+        .catch(error => console.error('Error:', error))
+        .finally(() => toggleLoader(false));
+    } else {
+        // Stream/batch mode
+        trajectories = [];
+        step = 0;
+        window.sim.setStepDtSeconds(timeScale);
+        let remaining = continuous ? 0 : (Number.isFinite(numSteps) ? numSteps : 0);
+        let currentPositionsKm = posArray;
+        let currentVelocitiesKmS = velArray;
+        let inflight = false;
+        const maxBufferedFrames = 2000; // backpressure threshold
+
+        function runNextBatch() {
+            if (inflight) return; // avoid multiple concurrent requests
+            // Backpressure: don't fetch if buffered ahead frames are plenty
+            const bufferedAhead = trajectories.length - window.sim.getStep();
+            if (bufferedAhead > maxBufferedFrames) {
+                // Try again later if still playing
+                if (!window.sim.isPaused) setTimeout(runNextBatch, 100);
+                return;
+            }
+            // If steps is 0 or negative, treat as infinite stream until user pauses
+            const n = (remaining && remaining > 0) ? Math.min(batchSteps, remaining) : batchSteps;
+            inflight = true;
+            fetch('/simulate_chunk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ masses, positions: currentPositionsKm, velocities: currentVelocitiesKmS, num_steps: n, dt, time_scale: timeScale })
+            })
+            .then(r => r.json())
+            .then(chunk => {
+                if (Array.isArray(chunk.trajectory)) {
+                    // Append new positions (already in meters)
+                    for (const frame of chunk.trajectory) trajectories.push(frame);
+                }
+                currentPositionsKm = chunk.final_positions_km;
+                currentVelocitiesKmS = chunk.final_velocities_km_s;
+                if (remaining && remaining > 0) remaining -= n;
+
+                // On first batch, init UI/canvas
+                if (trajectories.length > 0 && step === 0) {
+                    window.sim.updateFromUI();
+                    window.sim.updateLegend();
+                    initOrUpdateEnergyChart();
+                }
+                // Update chart progressively (throttled by batches)
+                initOrUpdateEnergyChart();
+                // Schedule next batch
+                if (!window.sim.isPaused) {
+                    setTimeout(runNextBatch, 0);
+                } else {
+                    toggleLoader(false);
+                    enablePlaybackIfData();
+                }
+            })
+            .catch(err => { console.error(err); toggleLoader(false); })
+            .finally(() => { inflight = false; });
+        }
+        // In continuous mode, auto-play
+        setPaused(false);
+        enablePlaybackIfData();
+        const tick = () => {
+            if (!window.sim.isPaused) runNextBatch();
+            setTimeout(tick, 100); // periodic check to refill buffer
+        };
+        tick();
+    }
 }
 
 function stopSimulation() {
     trajectories = [];
     step = 0;
     setup();
+}
+
+// --- New UI wiring ---
+let energyChart;
+
+function initOrUpdateEnergyChart() {
+    const ctx = document.getElementById('energyChart');
+    if (!ctx || trajectories.length === 0) return;
+    const e = window.sim.computeEnergies();
+    const labels = e.t.map(sec => (sec / 86400).toFixed(1)); // days
+    const datasets = [
+        { label: 'Kinetic', data: e.kinetic, borderColor: '#4dabf7', pointRadius: 0 },
+        { label: 'Potential', data: e.potential, borderColor: '#ff6b6b', pointRadius: 0 },
+        { label: 'Total', data: e.total, borderColor: '#ffd43b', pointRadius: 0 },
+    ];
+    if (energyChart) {
+        energyChart.data.labels = labels;
+        energyChart.data.datasets.forEach((ds, i) => ds.data = datasets[i].data);
+        energyChart.update('none');
+    } else {
+        energyChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: 'Time (days)' } },
+                    y: { title: { display: true, text: 'Energy (J)' }, ticks: { callback: v => abbreviateNumber(v) } }
+                },
+                plugins: { legend: { display: true, position: 'bottom' } }
+            }
+        });
+    }
+    const insights = document.getElementById('insightsText');
+    if (insights) {
+        const e0 = e.total[0];
+        const eN = e.total[e.total.length - 1];
+        const drift = ((eN - e0) / Math.max(1, Math.abs(e0))) * 100;
+        insights.innerText = `Energy drift: ${drift.toFixed(3)}% over simulation.`;
+    }
+}
+
+function abbreviateNumber(value) {
+    const suffixes = ['','k','M','B','T'];
+    let newValue = value;
+    let suffixNum = 0;
+    while (Math.abs(newValue) >= 1000 && suffixNum < suffixes.length - 1) {
+        newValue /= 1000;
+        suffixNum++;
+    }
+    return `${newValue.toFixed(2)}${suffixes[suffixNum]}`;
+}
+
+function toggleLoader(show) {
+    const loader = document.getElementById('loader');
+    if (!loader) return;
+    loader.style.display = show ? 'flex' : 'none';
+}
+
+function setPaused(paused) {
+    window.sim.isPaused = paused;
+    const btn = document.getElementById('playPauseBtn');
+    if (btn) btn.textContent = paused ? 'Play' : 'Pause';
+}
+
+function cssColor(c) {
+    // Accept named colors and hex; fallback to white
+    const d = document.createElement('div');
+    d.style.color = c;
+    document.body.appendChild(d);
+    const rgb = getComputedStyle(d).color;
+    document.body.removeChild(d);
+    // Convert rgb(a) to hex
+    const m = rgb.match(/\d+/g);
+    if (!m) return '#ffffff';
+    const [r,g,b] = m.map(Number);
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function refreshFollowBodyOptions() {
+    const sel = document.getElementById('followBody');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="-1">None</option>';
+    for (let i = 1; i <= numBodies; i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i - 1);
+        opt.textContent = `Body ${i}`;
+        sel.appendChild(opt);
+    }
+    if (prev && +prev < numBodies) sel.value = prev;
+}
+
+// Initial wire-up after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Playback controls
+    document.getElementById('playPauseBtn')?.addEventListener('click', () => {
+        setPaused(!window.sim.isPaused);
+    });
+    document.getElementById('resetViewBtn')?.addEventListener('click', () => {
+        window.sim.resetView();
+    });
+    // Disable/enable step inputs based on continuous mode
+    const continuous = document.getElementById('continuousMode');
+    const numStepsEl = document.getElementById('numSteps');
+    const batchStepsEl = document.getElementById('batchSteps');
+    function refreshStepInputs() {
+        const isCont = continuous?.checked;
+        if (!numStepsEl || !batchStepsEl) return;
+        if (isCont) {
+            numStepsEl.setAttribute('disabled', 'true');
+            batchStepsEl.removeAttribute('disabled');
+        } else {
+            numStepsEl.removeAttribute('disabled');
+            batchStepsEl.setAttribute('disabled', 'true');
+        }
+    }
+    continuous?.addEventListener('change', refreshStepInputs);
+    refreshStepInputs();
+    document.getElementById('downloadBtn')?.addEventListener('click', () => {
+        if (!trajectories || trajectories.length === 0) return;
+        const meta = { masses, colors, stepDtSeconds: window.sim.getStepDtSeconds(), createdAt: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify({ meta, trajectories }, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '3body_trajectories.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // Follow body select
+    document.getElementById('followBody')?.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.value, 10);
+        window.sim.setFollowIndex(isNaN(idx) ? -1 : idx);
+    });
+
+    // Zoom slider updates manual scale
+    document.getElementById('scaleSlider')?.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        document.getElementById('scaleValue').textContent = String(v);
+        window.sim.setManualScale(v);
+    });
+});
+
+function enablePlaybackIfData() {
+    const btn = document.getElementById('playPauseBtn');
+    if (btn && trajectories && trajectories.length > 0) {
+        btn.disabled = false;
+    }
 }
